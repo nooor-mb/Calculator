@@ -1,2 +1,160 @@
-code for calculator
+import java.util.*;
 
+class Main {
+    private static final List<String> hist = new ArrayList<>();
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Welcome to the Calculator!");
+
+        while (true) {
+            System.out.print("Enter expression: ");
+            String inp = sc.nextLine();
+
+            if (inp.equalsIgnoreCase("history")) {
+                printHist();
+                continue;
+            }
+
+            try {
+                // Evaluate the expression
+                double res = evalExp(inp);
+                System.out.println("Result: " + res);
+                hist.add(inp + " = " + res);
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+
+            // Validate y/n input for continuation
+            String ch = getYNInput(sc);
+            if (ch.equalsIgnoreCase("n")) {
+                break;
+            }
+        }
+
+        System.out.println("Thank you for using the Calculator!");
+        sc.close();
+    }
+
+    // Function to validate "y/n" input for continuation
+    private static String getYNInput(Scanner sc) {
+        String ch;
+        while (true) {
+            System.out.print("Continue? (y/n): ");
+            ch = sc.nextLine();
+            if (ch.equalsIgnoreCase("y") || ch.equalsIgnoreCase("n")) {
+                return ch;
+            } else {
+                System.out.println("Invalid input. Please enter 'y' for yes or 'n' for no.");
+            }
+        }
+    }
+
+    // Evaluate expression function that handles all operations and functions
+    private static double evalExp(String inp) throws Exception {
+        inp = inp.replaceAll("\\s+", ""); // Remove spaces
+        Stack<Double> values = new Stack<>();
+        Stack<Character> ops = new Stack<>();
+
+        int i = 0;
+        while (i < inp.length()) {
+            char c = inp.charAt(i);
+
+            // If the character is a number, parse the number
+            if (Character.isDigit(c) || c == '.') {
+                StringBuilder sb = new StringBuilder();
+                while (i < inp.length() && (Character.isDigit(inp.charAt(i)) || inp.charAt(i) == '.')) {
+                    sb.append(inp.charAt(i++));
+                }
+                values.push(Double.parseDouble(sb.toString()));
+                continue; // Skip incrementing `i` again
+            }
+            // If the character is '(', push to ops stack
+            else if (c == '(') {
+                ops.push(c);
+            }
+            // If the character is ')', solve the subexpression inside parentheses
+            else if (c == ')') {
+                while (ops.peek() != '(') {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                ops.pop(); // Remove '('
+            }
+            // If the character is an operator (+, -, *, /, %), handle it
+            else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%') {
+                while (!ops.isEmpty() && hasPrecedence(c, ops.peek())) {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                ops.push(c);
+            }
+            // If it's a function (like sqrt, abs, power), process the function
+            else if (Character.isLetter(c)) {
+                StringBuilder sb = new StringBuilder();
+                while (i < inp.length() && Character.isLetter(inp.charAt(i))) {
+                    sb.append(inp.charAt(i++));
+                }
+                String func = sb.toString();
+                if (func.equals("abs")) {
+                    double num = values.pop();
+                    values.push(Math.abs(num));
+                } else if (func.equals("sqrt")) {
+                    double num = values.pop();
+                    if (num < 0) throw new Exception("Cannot compute sqrt of negative number");
+                    values.push(Math.sqrt(num));
+                } else if (func.equals("round")) {
+                    double num = values.pop();
+                    values.push((double) Math.round(num)); // Cast long to double
+                } else if (func.equals("power")) {
+                    double exponent = values.pop();
+                    double base = values.pop();
+                    values.push(Math.pow(base, exponent));
+                } else {
+                    throw new Exception("Unknown function: " + func);
+                }
+                continue; // Skip incrementing `i` again
+            }
+            i++;
+        }
+
+        // Apply remaining operators
+        while (!ops.isEmpty()) {
+            values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+        }
+
+        return values.pop();
+    }
+
+    // Check if operator1 has precedence over operator2
+    private static boolean hasPrecedence(char op1, char op2) {
+        if (op2 == '(' || op2 == ')') return false;
+        if ((op1 == '*' || op1 == '/' || op1 == '%') && (op2 == '+' || op2 == '-')) return false;
+        return true;
+    }
+
+    // Apply operator to operands
+    private static double applyOp(char op, double b, double a) throws Exception {
+        switch (op) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/':
+                if (b == 0) throw new Exception("Cannot divide by zero");
+                // Round the result to 2 decimal places for division
+                return Math.round((a / b) * 100.0) / 100.0;
+            case '%': return a % b;
+            case '^': return Math.pow(a, b); // Handle power operation
+            default: throw new Exception("Invalid operator");
+        }
+    }
+
+    private static void printHist() {
+        if (hist.isEmpty()) {
+            System.out.println("No history available.");
+        } else {
+            System.out.println("Calculation History:");
+            for (String rec : hist) {
+                System.out.println(rec);
+            }
+        }
+    }
+}
